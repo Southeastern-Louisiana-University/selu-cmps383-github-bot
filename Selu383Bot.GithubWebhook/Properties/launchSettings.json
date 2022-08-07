@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Selu383Bot.GithubWebhook": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7056",
+      "launchBrowser": false
+    }
+  }
+}
