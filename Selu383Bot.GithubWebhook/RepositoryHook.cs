@@ -18,6 +18,7 @@ using Selu383Bot.GithubWebhook.Features.BranchProtections;
 using Selu383Bot.GithubWebhook.Features.CommitStatuses;
 using Selu383Bot.GithubWebhook.Features.RateLimits;
 using Selu383Bot.GithubWebhook.Features.Webhook;
+using Team = Selu383Bot.GithubWebhook.Features.Teams.Team;
 
 namespace Selu383Bot.GithubWebhook;
 
@@ -41,7 +42,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.Unauthorized);
             }
 
-            using var githubClient = new RestClient("https://api.github.com")
+            var githubClient = new RestClient("https://api.github.com")
                 .UseSerializer(()=> new JsonNetSerializer());
 
             var data = GetEnvironmentVariable("GithubAuthToken");
@@ -66,10 +67,9 @@ public static class RepositoryHook
             }
 
             var orderedElements = JsonConvert.DeserializeObject<JObject>(requestBody);
-
-            if (!orderedElements.ContainsKey("action"))
+            if (orderedElements == null)
             {
-                AppendLine("No action found");
+                AppendLine("No body");
                 return Status(HttpStatusCode.OK);
             }
 
@@ -82,17 +82,15 @@ public static class RepositoryHook
                     continue;
                 }
 
-                result.Action = element.Key switch
+                if (element.Key == "action" && element.Value.Type == JTokenType.String)
                 {
-                    "action" when element.Value.Type == JTokenType.String => element.Value.Value<string>(),
-                    _ => result.Action
-                };
+                    result.Action = element.Value.Value<string>();
+                }
 
-                result.Scope = element.Key switch
+                if (element.Key == "scope" && element.Value.Type == JTokenType.String)
                 {
-                    "scope" when element.Value.Type == JTokenType.String => element.Value.Value<string>(),
-                    _ => result.Scope
-                };
+                    result.Scope = element.Value.Value<string>();
+                }
 
                 if (element.Value.Type == JTokenType.Object && result.TargetType == null)
                 {
@@ -101,9 +99,9 @@ public static class RepositoryHook
                 }
             }
 
-            if (result.Action == null || result.TargetType == null)
+            if (result.TargetType == null)
             {
-                AppendLine("No action or target type found");
+                AppendLine("No target type found");
                 return Status(HttpStatusCode.OK);
             }
 
@@ -114,11 +112,10 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.InternalServerError);
             }
 
-            var repository = result.Payload.Repository;
-            if (repository == null || repository.Name == null)
+            if (result.Payload?.Repository?.Name == null)
             {
                 AppendLine("failed to get repository information");
-                return Status(HttpStatusCode.InternalServerError);
+                return Status(HttpStatusCode.OK);
             }
 
             if (result.Payload.Organization?.Login != SeluOrganization)
@@ -127,7 +124,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.InternalServerError);
             }
 
-            if (!repository.Name.Contains("cmps383"))
+            if (!result.Payload.Repository.Name.Contains("cmps383"))
             {
                 AppendLine("Looks like this isn't 383 - let's bounce");
                 return Status(HttpStatusCode.OK);
@@ -137,6 +134,7 @@ public static class RepositoryHook
             {
                 { TargetType: "repository", Action: "created" } => ApplyBranchProtection,
                 { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
+                { TargetType: "team", Action: null } => RenameTeam,
                 _ => null
             };
 
@@ -152,6 +150,7 @@ public static class RepositoryHook
 
             async Task<IActionResult> ApplyBranchProtection()
             {
+                var repository = result.Payload.Repository;
                 var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
                 branchProtection.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
                 branchProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
@@ -182,6 +181,7 @@ public static class RepositoryHook
 
             async Task<IActionResult> SetCheckSuiteStatus()
             {
+                var repository = result.Payload.Repository;
                 var checkSuite = result.Payload.CheckSuite;
                 if (checkSuite?.After == null)
                 {
@@ -203,6 +203,32 @@ public static class RepositoryHook
                 {
                     AppendLine("Error setting commit status");
                     AppendJson(commitStatus);
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+
+                return Status(HttpStatusCode.OK);
+            }
+
+            async Task<IActionResult> RenameTeam()
+            {
+                var repository = result.Payload.Repository;
+                var team = result.Payload.Team;
+
+
+                var teamName = new RestRequest("/orgs/{org}/teams/{team_slug}", Method.Patch);
+                teamName.AddParameter(Parameter.CreateParameter("org", SeluOrganization, ParameterType.UrlSegment));
+                teamName.AddParameter(Parameter.CreateParameter("team_slug", team.Slug, ParameterType.UrlSegment));
+                teamName.AddBody(new Team
+                {
+                    Name = repository.Name,
+                    Description = team.Description,
+                    Privacy = team.Privacy
+                });
+                var teamNameResult = await githubClient.ExecuteAsync(teamName);
+                if (!teamNameResult.IsSuccessful)
+                {
+                    AppendLine("Error setting team name");
+                    AppendJson(teamName);
                     return Status(HttpStatusCode.InternalServerError);
                 }
 

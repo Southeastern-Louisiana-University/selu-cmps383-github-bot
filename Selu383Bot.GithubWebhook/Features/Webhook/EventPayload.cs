@@ -12,4 +12,7 @@ public class EventPayload
 
     [JsonProperty("check_suite")]
     public CheckSuite CheckSuite { get; set; }
+
+    [JsonProperty("team")]
+    public Team Team { get; set; }
 }
