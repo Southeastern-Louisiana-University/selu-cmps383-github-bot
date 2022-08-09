@@ -170,7 +170,7 @@ public static class RepositoryHook
                 });
 
                 var branchProtectionResult = await githubClient.ExecuteAsync(branchProtection);
-                if (branchProtectionResult.StatusCode != HttpStatusCode.Created)
+                if (!branchProtectionResult.IsSuccessful)
                 {
                     AppendLine("Error applying branch protection");
                     AppendJson(branchProtectionResult);
@@ -199,7 +199,7 @@ public static class RepositoryHook
                     State = checkSuite.Conclusion
                 });
                 var commitStatusResult = await githubClient.ExecuteAsync(commitStatus);
-                if (commitStatusResult.StatusCode != HttpStatusCode.OK)
+                if (!commitStatusResult.IsSuccessful)
                 {
                     AppendLine("Error setting commit status");
                     AppendJson(commitStatus);
