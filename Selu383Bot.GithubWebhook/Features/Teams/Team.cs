@@ -4,7 +4,6 @@ namespace Selu383Bot.GithubWebhook.Features.Teams;
 
 public class Team
 {
-
     [JsonProperty("name")]
     public string Name { get; set; }
 

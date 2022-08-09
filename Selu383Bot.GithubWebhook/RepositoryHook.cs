@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -13,7 +12,6 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;
-using RestSharp.Serializers;
 using Selu383Bot.GithubWebhook.Features.BranchProtections;
 using Selu383Bot.GithubWebhook.Features.CommitStatuses;
 using Selu383Bot.GithubWebhook.Features.RateLimits;
@@ -214,7 +212,6 @@ public static class RepositoryHook
                 var repository = result.Payload.Repository;
                 var team = result.Payload.Team;
 
-
                 var teamName = new RestRequest("/orgs/{org}/teams/{team_slug}", Method.Patch);
                 teamName.AddParameter(Parameter.CreateParameter("org", SeluOrganization, ParameterType.UrlSegment));
                 teamName.AddParameter(Parameter.CreateParameter("team_slug", team.Slug, ParameterType.UrlSegment));
@@ -299,39 +296,5 @@ public static class RepositoryHook
     {
         return Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process) ??
                Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
-    }
-}
-
-public class JsonNetSerializer : IRestSerializer, ISerializer, IDeserializer
-{
-    private static readonly string[] Types = {
-        "application/json", "text/json", "text/x-json", "text/javascript", "*+json"
-    };
-
-    public string Serialize(Parameter parameter) => Serialize(parameter.Value);
-
-    public ISerializer Serializer => this;
-    public IDeserializer Deserializer => this;
-
-    public string[] AcceptedContentTypes => Types;
-
-    public SupportsContentType SupportsContentType { get; } = x => Types.Contains(x);
-
-    public DataFormat DataFormat => DataFormat.Json;
-
-    public string Serialize(object obj)
-    {
-        return JsonConvert.SerializeObject(obj);
-    }
-
-    public string ContentType { get; set; } = Types[0];
-
-    public T Deserialize<T>(RestResponse response)
-    {
-        if (response.Content == null)
-        {
-            return default;
-        }
-        return JsonConvert.DeserializeObject<T>(response.Content);
     }
 }
