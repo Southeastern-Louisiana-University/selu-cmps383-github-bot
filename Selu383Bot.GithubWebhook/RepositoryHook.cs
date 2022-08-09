@@ -147,10 +147,7 @@ public static class RepositoryHook
             branchProtection.AddParameter(Parameter.CreateParameter("branch", "master", ParameterType.UrlSegment));
             branchProtection.AddBody(new BranchProtection
             {
-                RequiredPullRequestReviews = new RequiredPullRequestReviews
-                {
-                    RequiredApprovingReviewCount = 1
-                }
+                RequiredPullRequestReviews = new RequiredPullRequestReviews()
             });
 
             var branchProtectionResult = await githubClient.ExecuteAsync(branchProtection);
