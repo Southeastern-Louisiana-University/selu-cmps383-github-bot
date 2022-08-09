@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,6 +15,7 @@ using Newtonsoft.Json.Linq;
 using RestSharp;
 using RestSharp.Serializers;
 using Selu383Bot.GithubWebhook.Features.BranchProtections;
+using Selu383Bot.GithubWebhook.Features.CommitStatuses;
 using Selu383Bot.GithubWebhook.Features.RateLimits;
 using Selu383Bot.GithubWebhook.Features.Webhook;
 
@@ -80,15 +82,17 @@ public static class RepositoryHook
                     continue;
                 }
 
-                if (element.Key == "action" && element.Value.Type == JTokenType.String)
+                result.Action = element.Key switch
                 {
-                    result.Action = element.Value.Value<string>();
-                }
+                    "action" when element.Value.Type == JTokenType.String => element.Value.Value<string>(),
+                    _ => result.Action
+                };
 
-                if (element.Key == "scope" && element.Value.Type == JTokenType.String)
+                result.Scope = element.Key switch
                 {
-                    result.Scope = element.Value.Value<string>();
-                }
+                    "scope" when element.Value.Type == JTokenType.String => element.Value.Value<string>(),
+                    _ => result.Scope
+                };
 
                 if (element.Value.Type == JTokenType.Object && result.TargetType == null)
                 {
@@ -100,18 +104,6 @@ public static class RepositoryHook
             if (result.Action == null || result.TargetType == null)
             {
                 AppendLine("No action or target type found");
-                return Status(HttpStatusCode.OK);
-            }
-
-            if (result.Action != "created" || result.TargetType != "repository")
-            {
-                AppendLine("not a created repository action - so we are skipping");
-                return Status(HttpStatusCode.OK);
-            }
-
-            if (result.Action != "created" || result.TargetType != "repository")
-            {
-                AppendLine("not a created repository action - so we are skipping");
                 return Status(HttpStatusCode.OK);
             }
 
@@ -141,24 +133,81 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
-            var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
-            branchProtection.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
-            branchProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
-            branchProtection.AddParameter(Parameter.CreateParameter("branch", "master", ParameterType.UrlSegment));
-            branchProtection.AddBody(new BranchProtection
+            Func<Task<IActionResult>> repoAction = result switch
             {
-                RequiredPullRequestReviews = new RequiredPullRequestReviews()
-            });
+                { TargetType: "repository", Action: "created" } => ApplyBranchProtection,
+                { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
+                _ => null
+            };
 
-            var branchProtectionResult = await githubClient.ExecuteAsync(branchProtection);
-            if (branchProtectionResult.StatusCode != HttpStatusCode.OK)
+            if (repoAction == null)
             {
-                AppendLine("Error applying branch protection");
-                AppendJson(branchProtectionResult);
-                return Status(HttpStatusCode.InternalServerError);
+                AppendLine($"event not handled: {result.Action} {result.TargetType}");
+                return Status(HttpStatusCode.OK);
             }
 
-            return Status(HttpStatusCode.OK);
+            AppendLine($"Performing process for: {result.Action} {result.TargetType}");
+
+            return await repoAction();
+
+            async Task<IActionResult> ApplyBranchProtection()
+            {
+                var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
+                branchProtection.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
+                branchProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
+                branchProtection.AddParameter(Parameter.CreateParameter("branch", "master", ParameterType.UrlSegment));
+                branchProtection.AddBody(new BranchProtection
+                {
+                    RequiredPullRequestReviews = new RequiredPullRequestReviews(),
+                    RequiredStatusChecks = new RequiredStatusChecks
+                    {
+                        Strict = true,
+                        Contexts = new List<string>
+                        {
+                            "Selu383Bot"
+                        }
+                    }
+                });
+
+                var branchProtectionResult = await githubClient.ExecuteAsync(branchProtection);
+                if (branchProtectionResult.StatusCode != HttpStatusCode.Created)
+                {
+                    AppendLine("Error applying branch protection");
+                    AppendJson(branchProtectionResult);
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+
+                return Status(HttpStatusCode.OK);
+            }
+
+            async Task<IActionResult> SetCheckSuiteStatus()
+            {
+                var checkSuite = result.Payload.CheckSuite;
+                if (checkSuite?.After == null)
+                {
+                    AppendLine("Invalid check suite");
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+                var commitStatus = new RestRequest("/repos/{owner}/{repo}/statuses/{sha}", Method.Post);
+                commitStatus.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
+                commitStatus.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
+                commitStatus.AddParameter(Parameter.CreateParameter("sha", checkSuite.After, ParameterType.UrlSegment));
+
+                commitStatus.AddBody(new CommitStatus
+                {
+                    Description = "Check Suite: " + checkSuite.Conclusion,
+                    State = checkSuite.Conclusion
+                });
+                var commitStatusResult = await githubClient.ExecuteAsync(commitStatus);
+                if (commitStatusResult.StatusCode != HttpStatusCode.OK)
+                {
+                    AppendLine("Error setting commit status");
+                    AppendJson(commitStatus);
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+
+                return Status(HttpStatusCode.OK);
+            }
         }
         catch (Exception e)
         {

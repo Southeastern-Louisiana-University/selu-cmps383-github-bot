@@ -9,4 +9,7 @@ public class EventPayload
 
     [JsonProperty("organization")]
     public Organization Organization { get; set; }
+
+    [JsonProperty("check_suite")]
+    public CheckSuite CheckSuite { get; set; }
 }
