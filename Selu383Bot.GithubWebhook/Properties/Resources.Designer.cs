@@ -70,18 +70,14 @@ namespace Selu383Bot.GithubWebhook.Properties {
         ///    &lt;h1&gt;Provde your email for azure&lt;/h1&gt;
         ///    &lt;p&gt;I&apos;m lazy and don&apos;t want to type your emails - enter whatever email azure should invite you with&lt;/p&gt;
         ///    &lt;p&gt;Don&apos;t mess up&lt;/p&gt;
-        ///    &lt;form method=&quot;post&quot;&gt;
-        ///        &lt;label for=&quot;email&quot;&gt;Email:&lt;/label&gt;
-        ///        &lt;input type=&quot;email&quot; id=&quot;email&quot; name=&quot;email&quot;&gt;
-        ///
-        ///        &lt;button type=&quot;submit&quot;&gt;Set As Azure Email&lt;/button&gt;
-        ///    &lt;/form&gt;
-        ///&lt;/body&gt;
-        ///&lt;/htm [rest of string was truncated]&quot;;.
+        ///    &lt;form method=&quot;post&quot;
+        ///          onSubmit=&quot;document.getElementById(&apos;submit&apos;).disabled=true;&quot;
+        ///          style=&quot;display: flex; gap: 40px; flex-direction: column; max-width: 300px&quot;&gt;
+        ///        &lt;div style=&quot;display: [rest of string was truncated]&quot;;.
         /// </summary>
-        internal static string SubmitStuff {
+        internal static string SetEmailAddress {
             get {
-                return ResourceManager.GetString("SubmitStuff", resourceCulture);
+                return ResourceManager.GetString("SetEmailAddress", resourceCulture);
             }
         }
     }

@@ -5,6 +5,9 @@
       <UserSecretsId>9847e656-f1d6-4186-a521-d197b5e8f218</UserSecretsId>
   </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Azure.Identity" Version="1.6.1" />
+        <PackageReference Include="Microsoft.Azure.Management.Fluent" Version="1.38.1" />
+        <PackageReference Include="Microsoft.Graph" Version="4.36.0" />
         <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.1" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
         <PackageReference Include="RestSharp" Version="108.0.1" />

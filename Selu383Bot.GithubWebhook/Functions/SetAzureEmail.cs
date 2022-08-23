@@ -2,138 +2,67 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
+using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Management.Fluent;
+using Microsoft.Azure.Management.Graph.RBAC.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Graph;
 using Newtonsoft.Json;
 using RestSharp;
 using Selu383Bot.GithubWebhook.Extensions;
-using Selu383Bot.GithubWebhook.Features.OAuth;
+using Selu383Bot.GithubWebhook.Features.Azure;
 using Selu383Bot.GithubWebhook.Features.Users;
 using Selu383Bot.GithubWebhook.Helpers;
 using Selu383Bot.GithubWebhook.Properties;
-using Sodium;
+using RestClient = RestSharp.RestClient;
+using FluentAzure = Microsoft.Azure.Management.Fluent.Azure;
 
 namespace Selu383Bot.GithubWebhook.Functions;
 
 public static class SetAzureEmail
 {
-    [FunctionName("StartLogin")]
-    public static async Task<IActionResult> StartLogin([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "start-azure-login")] HttpRequest req)
-    {
-        var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
-
-        var state = Guid.NewGuid().ToString("N");
-        using var hmac = GetHmac();
-        var computedHash = Convert.ToHexString(hmac.ComputeHash(Encoding.ASCII.GetBytes(state)));
-
-        var url = new UriBuilder("https://github.com/login/oauth/authorize?"+AddQuery(new Dictionary<string,string>
-        {
-            {"client_id" , clientId},
-            {"scope", "user:email"},
-            {"redirect_uri", FunctionHelper.GetEnvironmentVariable("githubredirect")},
-            {"state", computedHash},
-            {"allow_signup","false"},
-        }));
-
-        req.SetCookie("state", state);
-
-        return new RedirectResult(url.Uri.AbsoluteUri, false);
-    }
-
-    [FunctionName("FinishLogin")]
-    public static async Task<IActionResult> FinishLogin([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "finish-azure-login")] HttpRequest req)
-    {
-        var cookieState = req.Cookies["state"];
-        if (cookieState == null)
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No state");
-        }
-
-        using var hmac = GetHmac();
-        var computedHash = hmac.ComputeHash(Encoding.ASCII.GetBytes(cookieState));
-        var providedHash = Convert.FromHexString(req.Query["state"]);
-        if (!CryptographicOperations.FixedTimeEquals(computedHash, providedHash))
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Bad state");
-        }
-
-        var code = req.Query["code"].ToString();
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No code");
-        }
-
-        var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
-        var clientSecret = FunctionHelper.GetEnvironmentVariable("githubsecret");
-        var githubOAuthClient = new RestClient("https://github.com");
-        var userCodeRequest = new RestRequest("/login/oauth/access_token", Method.Post);
-        userCodeRequest.AddBody(JsonConvert.SerializeObject(new
-        {
-            client_id = clientId,
-            client_secret = clientSecret,
-            code = code,
-            redirect_uri = FunctionHelper.GetEnvironmentVariable("githubredirect")
-        }), "application/json");
-        var userCodeResponse = await githubOAuthClient.ExecuteAsync<AccessToken>(userCodeRequest);
-
-        var data = userCodeResponse.Data;
-        if (string.IsNullOrWhiteSpace(data?.access_token))
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No access_token");
-        }
-
-        var userGithubClient = new RestClient("https://api.github.com");
-        userGithubClient.AddDefaultHeader("Authorization", $"token {data.access_token}");
-
-        var userRequest = new RestRequest("/user", Method.Get);
-        var userResponse = await userGithubClient.ExecuteAsync<UserDto>(userRequest);
-
-        var username = userResponse.Data?.Login;
-        if (string.IsNullOrWhiteSpace(username))
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No username");
-        }
-
-        var key = Convert.FromHexString(FunctionHelper.GetEnvironmentVariable("SecretBoxKey"));
-        var nonce = SecretBox.GenerateNonce();
-        var message = Convert.ToHexString(SecretBox.Create(JsonConvert.SerializeObject(new EncryptedUserDto
-        {
-            Username = username,
-            CreatedUtc = DateTimeOffset.UtcNow,
-        }), nonce, key));
-
-        req.SetCookie("auth", message + "|" + Convert.ToHexString(nonce));
-
-        return new RedirectResult("/api/set-email", false);
-    }
-
     [FunctionName("set-email-get")]
-    public static async Task<IActionResult> SetEmailGet([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "set-email")] HttpRequest req)
+    public static Task<IActionResult> SetEmailGet([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "set-email")] HttpRequest req)
     {
-        return new ContentResult
+        var userData = req.GetAuthInfo();
+        if (userData == null)
+        {
+            req.SetCookie("path", "email");
+            return Task.FromResult<IActionResult>(new RedirectResult("/api/start-github-login", false));
+        }
+
+        return Task.FromResult<IActionResult>((new ContentResult
         {
             ContentType = "text/html; charset=utf-8",
             StatusCode = (int?) HttpStatusCode.OK,
-            Content = Resources.SubmitStuff
-        };
+            Content = Resources.SetEmailAddress
+        }));
     }
 
     [FunctionName("set-email-post")]
     public static async Task<IActionResult> SetEmailPost([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "set-email")] HttpRequest req)
     {
+        var userData = req.GetAuthInfo();
+        if (userData == null)
+        {
+            req.SetCookie("path", "email");
+            return new RedirectResult("/api/start-github-login", false);
+        }
+
         var form = await req.ReadFormAsync();
-        var email = form["email"].ToString();
+        var email = form["email"].ToString().Trim();
         if (string.IsNullOrEmpty(email))
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing email");
         }
 
-        var repository = form["repository"].ToString();
+        var repository = form["repository"].ToString().Trim();
         if (string.IsNullOrEmpty(repository))
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing repository");
@@ -144,31 +73,6 @@ public static class SetAzureEmail
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "You should only be using this for 383 :(");
         }
 
-        var authCookieValue = req.Cookies["auth"];
-        if (authCookieValue == null)
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "No auth");
-        }
-
-        EncryptedUserDto userData;
-        try
-        {
-            var split = authCookieValue.Split("|");
-            var message = split[0];
-            var nonce = Convert.FromHexString(split[1]);
-            var key = Convert.FromHexString(FunctionHelper.GetEnvironmentVariable("SecretBoxKey"));
-            userData = JsonConvert.DeserializeObject<EncryptedUserDto>(Encoding.UTF8.GetString(SecretBox.Open(message, nonce, key)));
-
-            if (userData == null || userData.CreatedUtc < DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(1)))
-            {
-                return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "It has been over an hour - you'll need to login with github again.");
-            }
-        }
-        catch (Exception e)
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "Invalid auth");
-        }
-
         var githubClient = new RestClient("https://api.github.com").UseSerializer(()=> new JsonNetSerializer());
         githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubAuthToken")}");
 
@@ -177,7 +81,7 @@ public static class SetAzureEmail
         collaboratorRequest.AddParameter(Parameter.CreateParameter("repo", repository, ParameterType.UrlSegment));
         collaboratorRequest.AddParameter(Parameter.CreateParameter("username", userData.Username, ParameterType.UrlSegment));
         var collaboratorResult = await githubClient.ExecuteAsync<RepositoryCollaboratorPermission>(collaboratorRequest);
-        // see: https://docs.github.com/en/rest/collaborators/collaborators#check-if-a-user-is-a-repository-collaborator
+        // see: https://docs.github.com/en/rest/collaborators/collaborators#get-repository-permissions-for-a-user
         var isCollaborator = collaboratorResult.StatusCode == HttpStatusCode.OK;
         if (!isCollaborator || collaboratorResult.Data == null)
         {
@@ -191,21 +95,195 @@ public static class SetAzureEmail
 
         var nameBase = repository.ToLowerInvariant();
 
-        return new ContentResult
+        var ownerServicePrincipal = JsonConvert.DeserializeObject<ServicePrincipalData>(FunctionHelper.GetEnvironmentVariable("AzureServicePrincipalData")) ?? throw new Exception("missing AzureServicePrincipalData");
+        var credentials = SdkContext.AzureCredentialsFactory.FromServicePrincipal(ownerServicePrincipal.AppId, ownerServicePrincipal.Password, ownerServicePrincipal.Tenant, AzureEnvironment.AzureGlobalCloud);
+
+        var authenticated = FluentAzure.Authenticate(credentials);
+        var azure = authenticated.WithSubscription(ownerServicePrincipal.SubscriptionId);
+
+        var credential = new ClientSecretCredential(ownerServicePrincipal.Tenant, ownerServicePrincipal.AppId, ownerServicePrincipal.Password);
+        var graphServiceClient = new GraphServiceClient(credential);
+
+        return await ProvisionGroup(graphServiceClient, azure, nameBase, email, userData.Username);
+    }
+
+    private static async Task<IActionResult> ProvisionGroup(
+        GraphServiceClient graphServiceClient,
+        IAzure azure,
+        string nameBase,
+        string email,
+        string githubUsername)
+    {
+        var resourceGroup = await GetOrCreateResourceGroup(azure, nameBase + "-resource-group");
+
+        var adUser = await GetOrCreateAdUser(graphServiceClient, email, githubUsername);
+        if (adUser == null)
         {
-            ContentType = "text/plain",
-            StatusCode = (int?) HttpStatusCode.OK,
-            Content = nameBase
+            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "We had trouble creating your user. Try again. Email 383@envoc.com if it continues to fail");
+        }
+        var adGroup = await GetOrCreateGroup(graphServiceClient, nameBase);
+
+        try
+        {
+            await graphServiceClient.Groups[adGroup.Id].Members.References
+                .Request()
+                .AddAsync(adUser);
+        }
+        catch (ServiceException e) when (e.Message.Contains("One or more added object references already exist"))
+        {
+            // try and fail is fastest
+        }
+
+        var roles = new[] { BuiltInRole.WebsiteContributor, BuiltInRole.SqlSecurityManager, BuiltInRole.SqlServerContributor, BuiltInRole.SqlDbContributor };
+        foreach (var role in roles)
+        {
+            await AddGroupRole(azure, adGroup, resourceGroup, role);
+        }
+
+        var allGroups = await azure.ResourceGroups.ListAsync();
+        var sharedResourceGroup = allGroups
+            .Where(x => x.Name.EndsWith("-shared"))
+            .SingleOrDefault(x => x.Name.Split("-").Length == 2);
+        if (sharedResourceGroup == null)
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Envoc needs to create the shared resource stuff");
+        }
+
+        await AddGroupRole(azure, adGroup, sharedResourceGroup, BuiltInRole.WebPlanContributor);
+
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {adUser.DisplayName} check {adUser.Mail} for an azure invite. It will be titled 'SELU 383 Envoc invited you to access applications within their organization' ");
+    }
+
+    private static async Task AddGroupRole(
+        IAzure azure,
+        Group adGroup,
+        IResourceGroup resourceGroup,
+        BuiltInRole role)
+    {
+        while (true)
+        {
+            try
+            {
+                await azure.AccessManagement.RoleAssignments.Define(SdkContext.RandomGuid())
+                    .ForObjectId(adGroup.Id)
+                    .WithBuiltInRole(role)
+                    .WithResourceScope(resourceGroup)
+                    .CreateAsync();
+
+                return;
+            }
+            catch (Exception e) when(e.Message == "The role assignment already exists.")
+            {
+                return;
+            }
+        }
+    }
+
+    private static async Task<User> GetOrCreateAdUser(GraphServiceClient graphServiceClient, string email, string githubUsername)
+    {
+        // appends github to avoid shenanigans
+        var displayName = githubUsername + "_github";
+        var emailExists = await graphServiceClient.Users.Request()
+            .Filter($"mail eq '{email}'")
+            .GetResponseAsync();
+        var emailExistsResult = await emailExists.GetResponseObjectAsync();
+        if (emailExistsResult.Value.Any())
+        {
+            // email exists
+            return emailExistsResult.Value.First();
+        }
+
+        var displayNameExists = await graphServiceClient.Users.Request()
+            .Filter($"displayName eq '{displayName}'")
+            .GetResponseAsync();
+        var displayNameExistsResults = await displayNameExists.GetResponseObjectAsync();
+        if (displayNameExistsResults.Value.Any())
+        {
+            // display name already present
+            return displayNameExistsResults.Value.First();
+        }
+
+        var dic = new Dictionary<string, object> { { "@odata.type", "microsoft.graph.invitedUserMessageInfo" } };
+        var invitation = new Invitation
+        {
+            InvitedUserEmailAddress = email,
+            InvitedUserMessageInfo = new InvitedUserMessageInfo { AdditionalData = dic },
+            InvitedUserDisplayName = displayName,
+            SendInvitationMessage = true,
+            InviteRedirectUrl = "https://portal.azure.com/",
         };
+
+        await graphServiceClient.Invitations.Request().AddAsync(invitation);
+
+        for (var i = 0; i < 60; i++)
+        {
+            try
+            {
+                await Task.Delay(1000);
+                var created = await graphServiceClient.Users.Request()
+                    .Filter($"mail eq '{email}'")
+                    .GetResponseAsync();
+                var createdResult = await created.GetResponseObjectAsync();
+                return createdResult.Value.Single();
+            }
+            catch (Exception e) when(e.Message.Contains("Sequence contains no elements"))
+            {
+            }
+        }
+
+        return null;
     }
 
-    private static string AddQuery(Dictionary<string,string> collection)
+    private static async Task<Group> GetOrCreateGroup(GraphServiceClient graphserviceClient, string nameBase)
     {
-        return string.Join("&", collection.Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value)}"));
+        var getExistingRequest = await graphserviceClient.Groups.Request()
+            .Filter($"displayName eq '{nameBase}'")
+            .GetResponseAsync();
+        var getExistingResponse = await getExistingRequest.GetResponseObjectAsync();
+        var existingGroup = getExistingResponse.Value.SingleOrDefault();
+
+        if (existingGroup != null)
+        {
+            return existingGroup;
+        }
+
+        var groupRequest = await graphserviceClient.Groups
+            .Request()
+            .AddResponseAsync(new Group
+            {
+                MailNickname = nameBase,
+                DisplayName = nameBase,
+                MailEnabled = false,
+                SecurityEnabled = true,
+                AdditionalData = new Dictionary<string, object>()
+            });
+        return await groupRequest.GetResponseObjectAsync();
     }
 
-    private static HMACSHA256 GetHmac()
+    private static async Task<IResourceGroup> GetOrCreateResourceGroup(IAzure azure, string groupName)
     {
-        return new HMACSHA256(Convert.FromHexString(FunctionHelper.GetEnvironmentVariable("HmacSecret")));
+        var existing = await GetResourceGroup(azure, groupName);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var result = await azure.ResourceGroups.Define(groupName)
+            .WithRegion(Region.USSouthCentral)
+            .CreateAsync();
+
+        return result;
+    }
+
+    private static async Task<IResourceGroup> GetResourceGroup(IAzure azure, string groupName)
+    {
+        try
+        {
+            return await azure.ResourceGroups.GetByNameAsync(groupName);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }

@@ -8,7 +8,9 @@
     <h1>Provde your email for azure</h1>
     <p>I'm lazy and don't want to type your emails - enter whatever email azure should invite you with</p>
     <p>Don't mess up</p>
-    <form method="post" style="display: flex; gap: 40px; flex-direction: column; max-width: 300px">
+    <form method="post"
+          onSubmit="document.getElementById('submit').disabled=true;"
+          style="display: flex; gap: 40px; flex-direction: column; max-width: 300px">
         <div style="display: flex; gap: 5px; flex-direction: column">
             <label for="email">Email:</label>
             <input type="email" id="email" name="email">
@@ -22,7 +24,7 @@
             <small>e.g. cmps383-2022-xx-p01-g0t</small>
         </div>
 
-        <button type="submit">Set As Azure Email</button>
+        <button type="submit" id="submit">Set As Azure Email</button>
     </form>
 </body>
 </html>
