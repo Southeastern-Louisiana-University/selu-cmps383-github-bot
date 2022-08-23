@@ -16,9 +16,10 @@ using Selu383Bot.GithubWebhook.Features.BranchProtections;
 using Selu383Bot.GithubWebhook.Features.CommitStatuses;
 using Selu383Bot.GithubWebhook.Features.RateLimits;
 using Selu383Bot.GithubWebhook.Features.Webhook;
+using Selu383Bot.GithubWebhook.Helpers;
 using Team = Selu383Bot.GithubWebhook.Features.Teams.Team;
 
-namespace Selu383Bot.GithubWebhook;
+namespace Selu383Bot.GithubWebhook.Functions;
 
 public static class RepositoryHook
 {
@@ -26,7 +27,7 @@ public static class RepositoryHook
     const string SeluOrganization = "Southeastern-Louisiana-University";
 
     [FunctionName("RepositoryHook")]
-    public static async Task<IActionResult> RunAsync(
+    public static async Task<ContentResult> RunAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]
         HttpRequest httpRequest)
     {
@@ -43,7 +44,7 @@ public static class RepositoryHook
             var githubClient = new RestClient("https://api.github.com")
                 .UseSerializer(()=> new JsonNetSerializer());
 
-            var data = GetEnvironmentVariable("GithubAuthToken");
+            var data = FunctionHelper.GetEnvironmentVariable("GithubAuthToken");
             githubClient.AddDefaultHeader("Authorization", $"token {data}");
 
             var rageLimit = new RestRequest("/rate_limit");
@@ -128,9 +129,18 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
-            Func<Task<IActionResult>> repoAction = result switch
+            Func<Task<ContentResult>> repoAction = result switch
             {
-                { TargetType: "repository", Action: "created" } => ApplyBranchProtection,
+                { TargetType: "repository", Action: "created" } => async () =>
+                {
+                    var protection = await ApplyBranchProtection();
+                    if (protection?.StatusCode != (int?)HttpStatusCode.OK)
+                    {
+                        return protection;
+                    }
+
+                    return Status(HttpStatusCode.OK);
+                },
                 { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
                 { TargetType: "team", Action: null } => RenameTeam,
                 _ => null
@@ -146,7 +156,7 @@ public static class RepositoryHook
 
             return await repoAction();
 
-            async Task<IActionResult> ApplyBranchProtection()
+            async Task<ContentResult> ApplyBranchProtection()
             {
                 var repository = result.Payload.Repository;
                 var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
@@ -177,7 +187,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
-            async Task<IActionResult> SetCheckSuiteStatus()
+            async Task<ContentResult> SetCheckSuiteStatus()
             {
                 var repository = result.Payload.Repository;
                 var checkSuite = result.Payload.CheckSuite;
@@ -207,7 +217,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
-            async Task<IActionResult> RenameTeam()
+            async Task<ContentResult> RenameTeam()
             {
                 var repository = result.Payload.Repository;
                 var team = result.Payload.Team;
@@ -239,9 +249,9 @@ public static class RepositoryHook
             return Status(HttpStatusCode.InternalServerError);
         }
 
-        IActionResult Status(HttpStatusCode code)
+        ContentResult Status(HttpStatusCode code)
         {
-            return ReturnResult(code, sb);
+            return FunctionHelper.ReturnResult(code, sb);
         }
 
         void AppendLine(string message)
@@ -262,7 +272,11 @@ public static class RepositoryHook
             return false;
         }
 
-        var webhookSecret = GetEnvironmentVariable("WebhookSecret");
+        var webhookSecret = FunctionHelper.GetEnvironmentVariable("WebhookSecret");
+        if (webhookSecret == "ignore")
+        {
+            return true;
+        }
 
         httpRequest.Headers.TryGetValue("X-Hub-Signature-256", out var signatureWithPrefix);
 
@@ -280,21 +294,5 @@ public static class RepositoryHook
         var signatureBytes = Convert.FromHexString(signatureString);
 
         return CryptographicOperations.FixedTimeEquals(computedHash, signatureBytes);
-    }
-
-    private static IActionResult ReturnResult(HttpStatusCode code, StringBuilder sb)
-    {
-        return new ContentResult()
-        {
-            StatusCode = (int)code,
-            Content = sb.ToString(),
-            ContentType = "text/plain"
-        };
-    }
-
-    private static string GetEnvironmentVariable(string name)
-    {
-        return Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process) ??
-               Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
     }
 }

@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 using RestSharp;
 using RestSharp.Serializers;
 
-namespace Selu383Bot.GithubWebhook;
+namespace Selu383Bot.GithubWebhook.Helpers;
 
 public class JsonNetSerializer : IRestSerializer, ISerializer, IDeserializer
 {
