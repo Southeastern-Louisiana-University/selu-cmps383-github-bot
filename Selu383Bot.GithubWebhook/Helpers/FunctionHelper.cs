@@ -7,14 +7,22 @@ namespace Selu383Bot.GithubWebhook.Helpers;
 
 public static class FunctionHelper
 {
-    public static ContentResult ReturnResult(HttpStatusCode code, StringBuilder sb)
+    // note: this is fixed so we don't oops elsewhere
+    public const string SeluOrganization = "Southeastern-Louisiana-University";
+
+    public static ContentResult ReturnResult(HttpStatusCode code, string text)
     {
         return new ContentResult()
         {
             StatusCode = (int)code,
-            Content = sb.ToString(),
+            Content = text,
             ContentType = "text/plain"
         };
+    }
+
+    public static ContentResult ReturnResult(HttpStatusCode code, StringBuilder sb)
+    {
+        return ReturnResult(code, sb.ToString());
     }
 
     public static string GetEnvironmentVariable(string name)

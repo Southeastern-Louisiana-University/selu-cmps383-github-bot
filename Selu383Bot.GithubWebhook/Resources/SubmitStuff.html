@@ -8,9 +8,19 @@
     <h1>Provde your email for azure</h1>
     <p>I'm lazy and don't want to type your emails - enter whatever email azure should invite you with</p>
     <p>Don't mess up</p>
-    <form method="post">
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email">
+    <form method="post" style="display: flex; gap: 40px; flex-direction: column; max-width: 300px">
+        <div style="display: flex; gap: 5px; flex-direction: column">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email">
+            <small>This is the email that you'll be added to azure with</small>
+        </div>
+
+        <div style="display: flex; gap: 5px; flex-direction: column">
+            <label for="repository">Repository:</label>
+            <input type="text" id="repository" name="repository">
+            <small>This is the repository name from github you made that needs azure things</small>
+            <small>e.g. cmps383-2022-xx-p01-g0t</small>
+        </div>
 
         <button type="submit">Set As Azure Email</button>
     </form>

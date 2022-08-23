@@ -51,7 +51,7 @@ public static class SetAzureEmail
         var cookieState = req.Cookies["state"];
         if (cookieState == null)
         {
-            throw new Exception("No state");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No state");
         }
 
         using var hmac = GetHmac();
@@ -59,13 +59,13 @@ public static class SetAzureEmail
         var providedHash = Convert.FromHexString(req.Query["state"]);
         if (!CryptographicOperations.FixedTimeEquals(computedHash, providedHash))
         {
-            throw new Exception("Bad state");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Bad state");
         }
 
         var code = req.Query["code"].ToString();
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new Exception("No code");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No code");
         }
 
         var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
@@ -84,7 +84,7 @@ public static class SetAzureEmail
         var data = userCodeResponse.Data;
         if (string.IsNullOrWhiteSpace(data?.access_token))
         {
-            throw new Exception("No access_token");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No access_token");
         }
 
         var userGithubClient = new RestClient("https://api.github.com");
@@ -96,7 +96,7 @@ public static class SetAzureEmail
         var username = userResponse.Data?.Login;
         if (string.IsNullOrWhiteSpace(username))
         {
-            throw new Exception("No username");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No username");
         }
 
         var key = Convert.FromHexString(FunctionHelper.GetEnvironmentVariable("SecretBoxKey"));
@@ -104,7 +104,7 @@ public static class SetAzureEmail
         var message = Convert.ToHexString(SecretBox.Create(JsonConvert.SerializeObject(new EncryptedUserDto
         {
             Username = username,
-            CreatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = DateTimeOffset.UtcNow,
         }), nonce, key));
 
         req.SetCookie("auth", message + "|" + Convert.ToHexString(nonce));
@@ -127,17 +127,75 @@ public static class SetAzureEmail
     public static async Task<IActionResult> SetEmailPost([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "set-email")] HttpRequest req)
     {
         var form = await req.ReadFormAsync();
-        var email = form["email"];
+        var email = form["email"].ToString();
         if (string.IsNullOrEmpty(email))
         {
-            return new RedirectResult("/api/set-email", false);
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing email");
         }
+
+        var repository = form["repository"].ToString();
+        if (string.IsNullOrEmpty(repository))
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing repository");
+        }
+
+        if (!repository.Contains("cmps383"))
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "You should only be using this for 383 :(");
+        }
+
+        var authCookieValue = req.Cookies["auth"];
+        if (authCookieValue == null)
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "No auth");
+        }
+
+        EncryptedUserDto userData;
+        try
+        {
+            var split = authCookieValue.Split("|");
+            var message = split[0];
+            var nonce = Convert.FromHexString(split[1]);
+            var key = Convert.FromHexString(FunctionHelper.GetEnvironmentVariable("SecretBoxKey"));
+            userData = JsonConvert.DeserializeObject<EncryptedUserDto>(Encoding.UTF8.GetString(SecretBox.Open(message, nonce, key)));
+
+            if (userData == null || userData.CreatedUtc < DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(1)))
+            {
+                return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "It has been over an hour - you'll need to login with github again.");
+            }
+        }
+        catch (Exception e)
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "Invalid auth");
+        }
+
+        var githubClient = new RestClient("https://api.github.com").UseSerializer(()=> new JsonNetSerializer());
+        githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubAuthToken")}");
+
+        var collaboratorRequest = new RestRequest("/repos/{owner}/{repo}/collaborators/{username}/permission");
+        collaboratorRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
+        collaboratorRequest.AddParameter(Parameter.CreateParameter("repo", repository, ParameterType.UrlSegment));
+        collaboratorRequest.AddParameter(Parameter.CreateParameter("username", userData.Username, ParameterType.UrlSegment));
+        var collaboratorResult = await githubClient.ExecuteAsync<RepositoryCollaboratorPermission>(collaboratorRequest);
+        // see: https://docs.github.com/en/rest/collaborators/collaborators#check-if-a-user-is-a-repository-collaborator
+        var isCollaborator = collaboratorResult.StatusCode == HttpStatusCode.OK;
+        if (!isCollaborator || collaboratorResult.Data == null)
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "You don't have access to " + repository + " or you mistyped the repository name");
+        }
+
+        if (collaboratorResult.Data.Permission != "write" && collaboratorResult.Data.Permission != "admin")
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.Unauthorized, "You don't have access to '" + repository + "'. your access that we see is: " + collaboratorResult.Data.Permission);
+        }
+
+        var nameBase = repository.ToLowerInvariant();
 
         return new ContentResult
         {
             ContentType = "text/plain",
             StatusCode = (int?) HttpStatusCode.OK,
-            Content = email
+            Content = nameBase
         };
     }
 

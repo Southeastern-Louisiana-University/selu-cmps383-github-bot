@@ -23,9 +23,6 @@ namespace Selu383Bot.GithubWebhook.Functions;
 
 public static class RepositoryHook
 {
-    // note: this is fixed so we don't oops elsewhere
-    const string SeluOrganization = "Southeastern-Louisiana-University";
-
     [FunctionName("RepositoryHook")]
     public static async Task<ContentResult> RunAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]
@@ -43,9 +40,7 @@ public static class RepositoryHook
 
             var githubClient = new RestClient("https://api.github.com")
                 .UseSerializer(()=> new JsonNetSerializer());
-
-            var data = FunctionHelper.GetEnvironmentVariable("GithubAuthToken");
-            githubClient.AddDefaultHeader("Authorization", $"token {data}");
+            githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubAuthToken")}");
 
             var rageLimit = new RestRequest("/rate_limit");
             var rateLimitResult = await githubClient.ExecuteAsync<RateLimit>(rageLimit);
@@ -117,7 +112,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
-            if (result.Payload.Organization?.Login != SeluOrganization)
+            if (result.Payload.Organization?.Login != FunctionHelper.SeluOrganization)
             {
                 AppendLine("we should only be processing selu organization things");
                 return Status(HttpStatusCode.InternalServerError);
@@ -131,16 +126,7 @@ public static class RepositoryHook
 
             Func<Task<ContentResult>> repoAction = result switch
             {
-                { TargetType: "repository", Action: "created" } => async () =>
-                {
-                    var protection = await ApplyBranchProtection();
-                    if (protection?.StatusCode != (int?)HttpStatusCode.OK)
-                    {
-                        return protection;
-                    }
-
-                    return Status(HttpStatusCode.OK);
-                },
+                { TargetType: "repository", Action: "created" } => ApplyBranchProtection,
                 { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
                 { TargetType: "team", Action: null } => RenameTeam,
                 _ => null
@@ -160,7 +146,7 @@ public static class RepositoryHook
             {
                 var repository = result.Payload.Repository;
                 var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
-                branchProtection.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
+                branchProtection.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
                 branchProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
                 branchProtection.AddParameter(Parameter.CreateParameter("branch", "master", ParameterType.UrlSegment));
                 branchProtection.AddBody(new BranchProtection
@@ -197,7 +183,7 @@ public static class RepositoryHook
                     return Status(HttpStatusCode.InternalServerError);
                 }
                 var commitStatus = new RestRequest("/repos/{owner}/{repo}/statuses/{sha}", Method.Post);
-                commitStatus.AddParameter(Parameter.CreateParameter("owner", SeluOrganization, ParameterType.UrlSegment));
+                commitStatus.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
                 commitStatus.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
                 commitStatus.AddParameter(Parameter.CreateParameter("sha", checkSuite.After, ParameterType.UrlSegment));
 
@@ -223,7 +209,7 @@ public static class RepositoryHook
                 var team = result.Payload.Team;
 
                 var teamName = new RestRequest("/orgs/{org}/teams/{team_slug}", Method.Patch);
-                teamName.AddParameter(Parameter.CreateParameter("org", SeluOrganization, ParameterType.UrlSegment));
+                teamName.AddParameter(Parameter.CreateParameter("org", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
                 teamName.AddParameter(Parameter.CreateParameter("team_slug", team.Slug, ParameterType.UrlSegment));
                 teamName.AddBody(new Team
                 {
