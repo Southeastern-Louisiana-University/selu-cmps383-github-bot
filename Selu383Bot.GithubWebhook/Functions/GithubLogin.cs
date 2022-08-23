@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -10,8 +9,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Azure.WebJobs.Host;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RestSharp;
 using Selu383Bot.GithubWebhook.Extensions;
@@ -71,16 +68,16 @@ public static class GithubLogin
 
         var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
         var clientSecret = FunctionHelper.GetEnvironmentVariable("githubsecret");
-        var githubOAuthClient = new RestClient("https://github.com").UseSerializer(() => new JsonNetSerializer());
+        var githubOAuthClient = new RestClient("https://github.com");
         var userCodeRequest = new RestRequest("/login/oauth/access_token", Method.Post);
-        userCodeRequest.AddBody(JsonConvert.SerializeObject(new
+        userCodeRequest.AddBody(new
         {
             client_id = clientId,
             client_secret = clientSecret,
             code,
             redirect_uri = FunctionHelper.GetEnvironmentVariable("githubredirect")
-        }), "application/json");
-        var userCodeResponse = await githubOAuthClient.ExecuteAsync<AccessToken>(userCodeRequest);
+        });
+        var userCodeResponse = await githubOAuthClient.ExecuteAsync<AccessTokenResponse>(userCodeRequest);
 
         var data = userCodeResponse.Data;
         if (string.IsNullOrWhiteSpace(data?.access_token))
