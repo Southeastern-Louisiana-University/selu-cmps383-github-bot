@@ -71,7 +71,7 @@ public static class GithubLogin
 
         var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
         var clientSecret = FunctionHelper.GetEnvironmentVariable("githubsecret");
-        var githubOAuthClient = new RestClient("https://github.com");
+        var githubOAuthClient = new RestClient("https://github.com").UseSerializer(() => new JsonNetSerializer());
         var userCodeRequest = new RestRequest("/login/oauth/access_token", Method.Post);
         userCodeRequest.AddBody(JsonConvert.SerializeObject(new
         {
@@ -88,7 +88,7 @@ public static class GithubLogin
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No access_token");
         }
 
-        var userGithubClient = new RestClient("https://api.github.com");
+        var userGithubClient = new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
         userGithubClient.AddDefaultHeader("Authorization", $"token {data.access_token}");
 
         var userRequest = new RestRequest("/user");

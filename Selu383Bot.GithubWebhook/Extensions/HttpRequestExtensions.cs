@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
@@ -20,7 +21,7 @@ public static class HttpRequestExtensions
         var authCookieValue = req.Cookies["auth"];
         if (authCookieValue == null)
         {
-            return null;
+            return Unauthorized();
         }
 
         try
@@ -33,14 +34,27 @@ public static class HttpRequestExtensions
 
             if (userData == null || userData.CreatedUtc < DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(1)))
             {
-                return null;
+                return Unauthorized();
             }
 
             return userData;
         }
         catch (Exception)
         {
+            return Unauthorized();
+        }
+
+        EncryptedUserDto Unauthorized()
+        {
+#if DEBUG
+            return new EncryptedUserDto
+            {
+                Username = "mvidacovich",
+                CreatedUtc = DateTimeOffset.UtcNow
+            };
+#else
             return null;
+#endif
         }
     }
 }
