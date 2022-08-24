@@ -238,6 +238,10 @@ public static class RepositoryHook
             {
                 var repository = result.Payload.Repository;
                 var team = result.Payload.Team;
+                if (team.Slug == "383-admin")
+                {
+                    return Status(HttpStatusCode.OK);
+                }
 
                 var teamName = new RestRequest("/orgs/{org}/teams/{team_slug}", Method.Patch);
                 teamName.AddParameter(Parameter.CreateParameter("org", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
