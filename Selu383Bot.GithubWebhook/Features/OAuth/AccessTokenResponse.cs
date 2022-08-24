@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-
-namespace Selu383Bot.GithubWebhook.Features.OAuth;
+﻿namespace Selu383Bot.GithubWebhook.Features.OAuth;
 
 public class AccessTokenResponse
 {

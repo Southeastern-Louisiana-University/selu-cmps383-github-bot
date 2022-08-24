@@ -15,6 +15,7 @@ using RestSharp;
 using Selu383Bot.GithubWebhook.Features.BranchProtections;
 using Selu383Bot.GithubWebhook.Features.CommitStatuses;
 using Selu383Bot.GithubWebhook.Features.RateLimits;
+using Selu383Bot.GithubWebhook.Features.Teams;
 using Selu383Bot.GithubWebhook.Features.Webhook;
 using Selu383Bot.GithubWebhook.Helpers;
 using Team = Selu383Bot.GithubWebhook.Features.Teams.Team;
@@ -125,7 +126,15 @@ public static class RepositoryHook
 
             Func<Task<ContentResult>> repoAction = result switch
             {
-                { TargetType: "repository", Action: "created" } => ApplyBranchProtection,
+                { TargetType: "repository", Action: "created" } => async () =>
+                {
+                    var addTeamError = await AddAdminTeam();
+                    if (addTeamError != null)
+                    {
+                        return addTeamError;
+                    }
+                    return await ApplyBranchProtection();
+                },
                 { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
                 { TargetType: "team", Action: null } => RenameTeam,
                 _ => null
@@ -140,6 +149,29 @@ public static class RepositoryHook
             AppendLine($"Performing process for: {result.Action} {result.TargetType}");
 
             return await repoAction();
+
+            async Task<ContentResult> AddAdminTeam()
+            {
+                var repository = result.Payload.Repository;
+                var teamPermissionRequest = new RestRequest("/orgs/{owner}/teams/{team_slug}/repos/{owner}/{repo}", Method.Put);
+                teamPermissionRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
+                teamPermissionRequest.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
+                teamPermissionRequest.AddParameter(Parameter.CreateParameter("team_slug", "383-admins", ParameterType.UrlSegment));
+                teamPermissionRequest.AddBody(new TeamPermission
+                {
+                    Permission = "admin"
+                });
+
+                var teamPermissionResult = await githubClient.ExecuteAsync(teamPermissionRequest);
+                if (!teamPermissionResult.IsSuccessful)
+                {
+                    AppendLine("Error applying admin team permission");
+                    AppendJson(teamPermissionResult);
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+
+                return null;
+            }
 
             async Task<ContentResult> ApplyBranchProtection()
             {
