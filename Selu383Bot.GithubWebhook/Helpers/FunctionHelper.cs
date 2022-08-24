@@ -13,6 +13,7 @@ public static class FunctionHelper
 {
     // note: this is fixed so we don't oops elsewhere
     public const string SeluOrganization = "Southeastern-Louisiana-University";
+    public const string AdminTeamSlug = "383-admins";
 
     public static ContentResult ReturnResult(HttpStatusCode code, string text)
     {

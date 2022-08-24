@@ -156,7 +156,7 @@ public static class RepositoryHook
                 var teamPermissionRequest = new RestRequest("/orgs/{owner}/teams/{team_slug}/repos/{owner}/{repo}", Method.Put);
                 teamPermissionRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
                 teamPermissionRequest.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
-                teamPermissionRequest.AddParameter(Parameter.CreateParameter("team_slug", "383-admins", ParameterType.UrlSegment));
+                teamPermissionRequest.AddParameter(Parameter.CreateParameter("team_slug", FunctionHelper.AdminTeamSlug, ParameterType.UrlSegment));
                 teamPermissionRequest.AddBody(new TeamPermission
                 {
                     Permission = "admin"
@@ -238,7 +238,7 @@ public static class RepositoryHook
             {
                 var repository = result.Payload.Repository;
                 var team = result.Payload.Team;
-                if (team.Slug == "383-admin")
+                if (team.Slug == FunctionHelper.AdminTeamSlug)
                 {
                     return Status(HttpStatusCode.OK);
                 }
