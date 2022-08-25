@@ -60,14 +60,14 @@ public static class LockRepositories
             var teamPermissionRequest = new RestRequest("/orgs/{owner}/teams/{team_slug}/repos/{owner}/{repo}", Method.Put);
             teamPermissionRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
             // we can cheat - we renamed the team to match the repository values identically
-            teamPermissionRequest.AddParameter(Parameter.CreateParameter("repo", relevantTeam, ParameterType.UrlSegment));
-            teamPermissionRequest.AddParameter(Parameter.CreateParameter("team_slug", relevantTeam, ParameterType.UrlSegment));
+            teamPermissionRequest.AddParameter(Parameter.CreateParameter("repo", relevantTeam.Slug, ParameterType.UrlSegment));
+            teamPermissionRequest.AddParameter(Parameter.CreateParameter("team_slug", relevantTeam.Slug, ParameterType.UrlSegment));
             teamPermissionRequest.AddBody(new
             {
                 permission = "pull"
             });
 
-            log.LogInformation($"Locking out {relevantTeam}");
+            log.LogInformation($"Locking out {relevantTeam.Slug}");
 
             await githubClient.ExecuteAsync(teamPermissionRequest);
         }
