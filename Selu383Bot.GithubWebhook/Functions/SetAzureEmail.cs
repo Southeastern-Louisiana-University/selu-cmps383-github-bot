@@ -116,8 +116,8 @@ public static class SetAzureEmail
     {
         var resourceGroup = await GetOrCreateResourceGroup(azure, nameBase + "-resource-group");
 
-        var adUser = await GetOrCreateAdUser(graphServiceClient, email, githubUsername);
-        if (adUser == null)
+        var createResult = await GetOrCreateAdUser(graphServiceClient, email, githubUsername);
+        if (createResult.adUser == null)
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "We had trouble creating your user. Try again. Email 383@envoc.com if it continues to fail");
         }
@@ -127,7 +127,7 @@ public static class SetAzureEmail
         {
             await graphServiceClient.Groups[adGroup.Id].Members.References
                 .Request()
-                .AddAsync(adUser);
+                .AddAsync(createResult.adUser);
         }
         catch (ServiceException e) when (e.Message.Contains("One or more added object references already exist"))
         {
@@ -151,7 +151,12 @@ public static class SetAzureEmail
 
         await AddGroupRole(azure, adGroup, sharedResourceGroup, BuiltInRole.WebPlanContributor);
 
-        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {adUser.DisplayName} check {adUser.Mail} for an azure invite. It will be titled 'SELU 383 Envoc invited you to access applications within their organization' ");
+        if (createResult.adInvite != null)
+        {
+            return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} check {createResult.adUser.Mail} for an azure invite. It will be titled 'SELU 383 Envoc invited you to access applications within their organization'. SAVE THIS: If you don't get the email, your link is: {createResult.adInvite.InviteRedeemUrl}");
+        }
+
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} / {createResult.adUser.Mail} - It looks like you were already setup. The rest of your azure resources have been setup. If your email looks wrong then contact 383@envoc.com");
     }
 
     private static async Task AddGroupRole(
@@ -179,8 +184,11 @@ public static class SetAzureEmail
         }
     }
 
-    private static async Task<User> GetOrCreateAdUser(GraphServiceClient graphServiceClient, string email, string githubUsername)
+    private static async Task<(User adUser, Invitation adInvite)> GetOrCreateAdUser(GraphServiceClient graphServiceClient, string email, string githubUsername)
     {
+
+        // TODO: maybe check for a sent but unredeemed invite?
+
         // appends github to avoid shenanigans
         var displayName = githubUsername + "_github";
         var emailExists = await graphServiceClient.Users.Request()
@@ -190,7 +198,7 @@ public static class SetAzureEmail
         if (emailExistsResult.Value.Any())
         {
             // email exists
-            return emailExistsResult.Value.First();
+            return new (emailExistsResult.Value.First(), null);
         }
 
         var displayNameExists = await graphServiceClient.Users.Request()
@@ -200,7 +208,7 @@ public static class SetAzureEmail
         if (displayNameExistsResults.Value.Any())
         {
             // display name already present
-            return displayNameExistsResults.Value.First();
+            return new (displayNameExistsResults.Value.First(), null);
         }
 
         var dic = new Dictionary<string, object> { { "@odata.type", "microsoft.graph.invitedUserMessageInfo" } };
@@ -213,7 +221,7 @@ public static class SetAzureEmail
             InviteRedirectUrl = "https://portal.azure.com/",
         };
 
-        await graphServiceClient.Invitations.Request().AddAsync(invitation);
+        var inviteResult = await graphServiceClient.Invitations.Request().AddAsync(invitation);
 
         for (var i = 0; i < 60; i++)
         {
@@ -224,14 +232,14 @@ public static class SetAzureEmail
                     .Filter($"mail eq '{email}'")
                     .GetResponseAsync();
                 var createdResult = await created.GetResponseObjectAsync();
-                return createdResult.Value.Single();
+                return new (createdResult.Value.Single(), inviteResult);
             }
             catch (Exception e) when(e.Message.Contains("Sequence contains no elements"))
             {
             }
         }
 
-        return null;
+        return new (null, null);
     }
 
     private static async Task<Group> GetOrCreateGroup(GraphServiceClient graphserviceClient, string nameBase)
