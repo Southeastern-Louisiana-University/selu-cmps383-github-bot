@@ -20,7 +20,8 @@ using Sodium;
 namespace Selu383Bot.GithubWebhook.Functions;
 
 public static class GithubLogin
-{[FunctionName("start-github-login")]
+{
+    [FunctionName("start-github-login")]
     public static Task<IActionResult> StartLogin([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "start-github-login")] HttpRequest req)
     {
         var clientId = FunctionHelper.GetEnvironmentVariable("githubclientId");
