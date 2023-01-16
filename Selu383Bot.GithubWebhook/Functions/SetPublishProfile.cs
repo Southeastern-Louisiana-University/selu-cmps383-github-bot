@@ -96,31 +96,64 @@ public static class SetPublishProfile
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "we couldn't get secrets key. If this keeps happening contact 383@envoc.com");
         }
 
-        using var stream = file.OpenReadStream();
-        var secretValue = new byte[file.Length];
-        var _ = await stream.ReadAsync(secretValue);
         var publicKey = Convert.FromBase64String(secretPublicKeyResult.Data.Key);
-        var sealedPublicKeyBox = Sodium.SealedPublicKeyBox.Create(secretValue, publicKey);
-        var encryptedValue = Convert.ToBase64String(sealedPublicKeyBox);
-
-        var putSecretRequest = new RestRequest("/repos/{owner}/{repo}/actions/secrets/{secret_name}", Method.Put);
-        putSecretRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
-        putSecretRequest.AddParameter(Parameter.CreateParameter("repo", repository, ParameterType.UrlSegment));
 
         const string publishProfileKey = "AZURE_WEBAPP_PUBLISH_PROFILE";
-        putSecretRequest.AddParameter(Parameter.CreateParameter("secret_name", publishProfileKey, ParameterType.UrlSegment));
 
-        putSecretRequest.AddBody(new CreateRepositorySecret
+        var encryptedValue = await GetEncryptedValue(file, publicKey);
+
+        var publishError = await UpdateSecret(publishProfileKey, encryptedValue);
+        if (publishError != null)
         {
-            EncryptedValue = encryptedValue,
-            KeyId = secretPublicKeyResult.Data.KeyId
-        });
-        var saved = (await githubClient.ExecuteAsync(putSecretRequest)).IsSuccessful;
-        if (!saved)
-        {
-            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
+            return publishError;
         }
 
-        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {publishProfileKey} as a secret value in your actions");
+        const string expoTokenKey = "EXPO_TOKEN";
+        var expoError = await UpdateSecret(expoTokenKey, GetEncryptedValue(FunctionHelper.GetEnvironmentVariable("ExpoToken"), publicKey));
+        if (expoError != null)
+        {
+            return expoError;
+        }
+
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {publishProfileKey} and {expoTokenKey} as a secret values in your actions");
+
+        async Task<ContentResult?> UpdateSecret(string key, string encryptedResult)
+        {
+            var putSecretRequest = new RestRequest("/repos/{owner}/{repo}/actions/secrets/{secret_name}", Method.Put);
+            putSecretRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
+            putSecretRequest.AddParameter(Parameter.CreateParameter("repo", repository, ParameterType.UrlSegment));
+
+            putSecretRequest.AddParameter(Parameter.CreateParameter("secret_name", key, ParameterType.UrlSegment));
+
+            putSecretRequest.AddBody(new CreateRepositorySecret
+            {
+                EncryptedValue = encryptedResult,
+                KeyId = secretPublicKeyResult.Data.KeyId
+            });
+            var saved = (await githubClient.ExecuteAsync(putSecretRequest)).IsSuccessful;
+            if (!saved)
+            {
+                return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
+            }
+
+            return null;
+        }
+    }
+
+    private static string GetEncryptedValue(string secretString, byte[] publicKey)
+    {
+        var sealedPublicKeyBox = Sodium.SealedPublicKeyBox.Create(secretString, publicKey);
+        var encryptedValue = Convert.ToBase64String(sealedPublicKeyBox);
+        return encryptedValue;
+    }
+
+    private static async Task<string> GetEncryptedValue(IFormFile secretFile, byte[] publicKey)
+    {
+        using var stream = secretFile.OpenReadStream();
+        var secretValue = new byte[secretFile.Length];
+        var _ = await stream.ReadAsync(secretValue);
+        var sealedPublicKeyBox = Sodium.SealedPublicKeyBox.Create(secretValue, publicKey);
+        var encryptedValue = Convert.ToBase64String(sealedPublicKeyBox);
+        return encryptedValue;
     }
 }
