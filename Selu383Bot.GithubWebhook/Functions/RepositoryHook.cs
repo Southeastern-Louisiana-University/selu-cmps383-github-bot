@@ -126,6 +126,16 @@ public static class RepositoryHook
 
             Func<Task<ContentResult>> repoAction = result switch
             {
+                { TargetType: "changes", Action: "edited" } => async () =>
+                {
+                    if (result.Target.ContainsKey("default_branch"))
+                    {
+                        return await ApplyBranchProtection();
+                    }
+
+                    AppendLine($"edited changes not handled: {result.Action} {result.TargetType}");
+                    return Status(HttpStatusCode.OK);
+                },
                 { TargetType: "repository", Action: "created" } => async () =>
                 {
                     var addTeamError = await AddAdminTeam();
@@ -133,7 +143,8 @@ public static class RepositoryHook
                     {
                         return addTeamError;
                     }
-                    return await ApplyBranchProtection();
+
+                    return Status(HttpStatusCode.OK);
                 },
                 { TargetType: "check_suite", Action: "completed" } => SetCheckSuiteStatus,
                 { TargetType: "team", Action: null } => RenameTeam,
