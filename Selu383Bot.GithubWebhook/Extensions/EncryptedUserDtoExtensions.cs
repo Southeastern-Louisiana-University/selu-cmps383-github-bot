@@ -9,7 +9,7 @@ namespace Selu383Bot.GithubWebhook.Extensions;
 
 public static class EncryptedUserDtoExtensions
 {
-    public static async Task<IActionResult> GetAccessError(this EncryptedUserDto userData,string repository)
+    public static async Task<IActionResult> GetAccessError(this EncryptedUserDto userData, string repository)
     {
         if (string.IsNullOrEmpty(repository))
         {
@@ -21,7 +21,7 @@ public static class EncryptedUserDtoExtensions
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "You should only be using this for 383 :(");
         }
 
-        var githubClient = FunctionHelper.GetGithubClient();
+        var githubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
         githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubAuthToken")}");
 
         var collaboratorRequest = new RestRequest("/repos/{owner}/{repo}/collaborators/{username}/permission");

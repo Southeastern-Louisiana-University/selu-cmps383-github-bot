@@ -60,7 +60,7 @@ public static class SetPublishProfile
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing file");
         }
 
-        var githubClient = FunctionHelper.GetGithubClient();
+        var githubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
         var secretPublicKeyRequest = new RestRequest("/repos/{owner}/{repo}/actions/secrets/public-key");
         secretPublicKeyRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
         secretPublicKeyRequest.AddParameter(Parameter.CreateParameter("repo", repository, ParameterType.UrlSegment));

@@ -1,11 +1,19 @@
 ﻿using System;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.Table;
+using Newtonsoft.Json;
 using Selu383Bot.GithubWebhook.Extensions;
+using Selu383Bot.GithubWebhook.Features.StudentHooks;
+using Selu383Bot.GithubWebhook.Features.Webhook;
+using Selu383Bot.GithubWebhook.Helpers;
 using Selu383Bot.GithubWebhook.Properties;
 using FluentAzure = Microsoft.Azure.Management.Fluent.Azure;
 
@@ -50,6 +58,16 @@ public static class SetWebook
             return accessError;
         }
 
-        throw new NotImplementedException();
+        var webhooks = await FunctionHelper.GetStudentWebhooksTable();
+        var entity = new WebhookTableEntity(repository.ToLower(), "0")
+        {
+            Url = webhookUrl
+        };
+
+        await webhooks.ExecuteAsync(TableOperation.InsertOrReplace(entity));
+
+        await FunctionHelper.WriteToStudentBlobAsync(repository, JsonConvert.SerializeObject(new { test = true, some = "value" }));
+
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, "done!");
     }
 }
