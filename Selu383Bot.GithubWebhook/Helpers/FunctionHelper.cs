@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using RestSharp;
 using Selu383Bot.GithubWebhook.Features.Users;
 using Sodium;
 
@@ -34,5 +35,10 @@ public static class FunctionHelper
     {
         return Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process) ??
                Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
+    }
+
+    public static RestClient GetGithubClient()
+    {
+        return new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
     }
 }
