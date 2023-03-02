@@ -26,6 +26,11 @@ public static class StudentHookBlob
         try
         {
             var url = await FunctionHelper.GetHostForStudentHookBlobAsync(handle);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await handle.DeleteAsync();
+                return;
+            }
             var httpClient = HttpClientFactory.Create();
             var request = new HttpRequestMessage(HttpMethod.Post, url)
             {

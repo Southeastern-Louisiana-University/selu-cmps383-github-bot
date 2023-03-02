@@ -1,18 +1,13 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
-using Newtonsoft.Json;
 using RestSharp;
 using Selu383Bot.GithubWebhook.Features.StudentHooks;
-using Selu383Bot.GithubWebhook.Features.Users;
-using Sodium;
 
 namespace Selu383Bot.GithubWebhook.Helpers;
 
@@ -93,11 +88,8 @@ public static class FunctionHelper
     public static async Task<string> GetHostForStudentHookBlobAsync(CloudBlockBlob handle)
     {
         var table = await GetStudentWebhooksTable();
-
         var row = await table.ExecuteAsync(TableOperation.Retrieve<WebhookTableEntity>(handle.Metadata["repo"].ToLower(), "0"));
-
         var data = row.Result as WebhookTableEntity;
-
         return data?.Url;
     }
 }
