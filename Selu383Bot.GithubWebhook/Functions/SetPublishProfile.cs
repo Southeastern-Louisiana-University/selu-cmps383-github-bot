@@ -9,7 +9,6 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using RestSharp;
 using Selu383Bot.GithubWebhook.Extensions;
 using Selu383Bot.GithubWebhook.Features.Secrets;
-using Selu383Bot.GithubWebhook.Features.Users;
 using Selu383Bot.GithubWebhook.Helpers;
 using Selu383Bot.GithubWebhook.Properties;
 using FluentAzure = Microsoft.Azure.Management.Fluent.Azure;
