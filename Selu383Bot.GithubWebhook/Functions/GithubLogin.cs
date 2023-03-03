@@ -86,7 +86,7 @@ public static class GithubLogin
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No access_token");
         }
 
-        var userGithubClient = new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
+        var userGithubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
         userGithubClient.AddDefaultHeader("Authorization", $"token {data.access_token}");
 
         var userRequest = new RestRequest("/user");
@@ -112,6 +112,11 @@ public static class GithubLogin
         if (path == "secret")
         {
             return new RedirectResult("/api/set-secret", false);
+        }
+
+        if (path == "webhook")
+        {
+            return new RedirectResult("/api/set-webhook", false);
         }
 
         return new RedirectResult("/api/set-email", false);

@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enter webhook URL</title>
+</head>
+<body>
+    <h1>Provde a URL that will be called with each GitHub webhook call</h1>
+    <p>Each group/repository can have only one of these at a time - the last one entered 'wins'.</p>
+    <form method="post"
+          onSubmit="document.getElementById('submit').disabled=true;"
+          style="display: flex; gap: 40px; flex-direction: column; max-width: 300px">
+        <div style="display: flex; gap: 5px; flex-direction: column">
+            <label for="webhookUrl">URL:</label>
+            <input type="url" id="webhookUrl" name="webhookUrl">
+            <small>This is the URL that the 383 bot will POST to each time your repository changes. entering nothing deletes the webhook</small>
+        </div>
+
+        <div style="display: flex; gap: 5px; flex-direction: column">
+            <label for="repository">Repository:</label>
+            <input type="text" id="repository" name="repository">
+            <small>This is the repository name from github that you want the webhook to call</small>
+            <small>e.g. cmps383-2022-xx-p01-g0t</small>
+        </div>
+
+        <div style="display: flex; gap: 5px; flex-direction: column">
+            <p>This will send a sample payload that looks like:</p>
+            <pre>{"test":true,"some":"value"}</pre>
+
+            <button type="submit" id="submit">Set Webhook</button>
+        </div>
+    </form>
+</body>
+</html>

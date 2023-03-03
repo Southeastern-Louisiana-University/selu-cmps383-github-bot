@@ -90,16 +90,38 @@ namespace Selu383Bot.GithubWebhook.Properties {
         ///    &lt;title&gt;Provide Publish Profile&lt;/title&gt;
         ///&lt;/head&gt;
         ///&lt;body&gt;
-        ///    &lt;h1&gt;Provde your publish profile as a secret&lt;/h1&gt;
+        ///    &lt;h1&gt;Provide your publish profile as a secret&lt;/h1&gt;
         ///    &lt;p&gt;You&apos;d normally be able to specify secrets yourself in github, but as a student you are a bit more limited&lt;/p&gt;
         ///    &lt;p&gt;Upload your file and your target repository&lt;/p&gt;
         ///    &lt;p&gt;You can do this many times - the last one you submit &apos;wins&apos;&lt;/p&gt;
         ///    &lt;form method=&quot;post&quot;
-        ///          onSubmit=&quot;document.getElementById(&apos;submit&apos;).d [rest of string was truncated]&quot;;.
+        ///          onSubmit=&quot;document.getElementById(&apos;submit&apos;). [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string SetPublishProfile {
             get {
                 return ResourceManager.GetString("SetPublishProfile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &lt;!DOCTYPE html&gt;
+        ///&lt;html lang=&quot;en&quot;&gt;
+        ///&lt;head&gt;
+        ///    &lt;meta charset=&quot;UTF-8&quot;&gt;
+        ///    &lt;title&gt;Enter your email&lt;/title&gt;
+        ///&lt;/head&gt;
+        ///&lt;body&gt;
+        ///    &lt;h1&gt;Provde your email for azure&lt;/h1&gt;
+        ///    &lt;p&gt;I&apos;m lazy and don&apos;t want to type your emails - enter whatever email azure should invite you with&lt;/p&gt;
+        ///    &lt;p&gt;Don&apos;t mess up&lt;/p&gt;
+        ///    &lt;form method=&quot;post&quot;
+        ///          onSubmit=&quot;document.getElementById(&apos;submit&apos;).disabled=true;&quot;
+        ///          style=&quot;display: flex; gap: 40px; flex-direction: column; max-width: 300px&quot;&gt;
+        ///        &lt;div style=&quot;display: [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string SetWebHook {
+            get {
+                return ResourceManager.GetString("SetWebHook", resourceCulture);
             }
         }
     }

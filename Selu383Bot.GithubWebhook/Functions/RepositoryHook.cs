@@ -124,6 +124,8 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.OK);
             }
 
+            await FunctionHelper.WriteToStudentBlobAsync(result.Payload.Repository.Name, requestBody);
+
             Func<Task<ContentResult>> repoAction = result switch
             {
                 { TargetType: "changes", Action: "edited" } => async () =>
