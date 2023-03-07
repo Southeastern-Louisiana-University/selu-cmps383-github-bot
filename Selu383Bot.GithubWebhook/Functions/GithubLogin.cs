@@ -87,7 +87,6 @@ public static class GithubLogin
         }
 
         var userGithubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
-        userGithubClient.AddDefaultHeader("Authorization", $"token {data.access_token}");
 
         var userRequest = new RestRequest("/user");
         var userResponse = await userGithubClient.ExecuteAsync<UserDto>(userRequest);

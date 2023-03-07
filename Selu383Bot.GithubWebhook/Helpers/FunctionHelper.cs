@@ -41,7 +41,9 @@ public static class FunctionHelper
 
     public static RestClient GetNewtonsoftGithubApiClient()
     {
-        return new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
+        var githubClient = new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
+        githubClient.AddDefaultHeader("Authorization", $"token {GetEnvironmentVariable("GithubAuthToken")}");
+        return githubClient;
     }
 
     public static CloudTableClient GetCloudTableClient()

@@ -22,7 +22,6 @@ public static class EncryptedUserDtoExtensions
         }
 
         var githubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
-        githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubAuthToken")}");
 
         var collaboratorRequest = new RestRequest("/repos/{owner}/{repo}/collaborators/{username}/permission");
         collaboratorRequest.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
