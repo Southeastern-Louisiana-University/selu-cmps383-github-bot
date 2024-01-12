@@ -13,7 +13,7 @@ namespace Selu383Bot.GithubWebhook.Functions;
 public static class LockRepositories
 {
     // TODO: setting?
-    private const string TeamSlugContainsString = "cmps383-2023-sp";
+    private const string TeamSlugContainsString = "cmps383-2024-sp";
 
     [FunctionName("LockRepositories")]
     public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer, ILogger log)
