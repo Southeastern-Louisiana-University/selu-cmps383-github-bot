@@ -86,7 +86,8 @@ public static class GithubLogin
             return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "No access_token");
         }
 
-        var userGithubClient = FunctionHelper.GetNewtonsoftGithubApiClient();
+        var userGithubClient = new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
+        userGithubClient.AddDefaultHeader("Authorization", $"token {data?.access_token}");
 
         var userRequest = new RestRequest("/user");
         var userResponse = await userGithubClient.ExecuteAsync<UserDto>(userRequest);
