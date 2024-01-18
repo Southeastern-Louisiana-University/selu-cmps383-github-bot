@@ -46,15 +46,7 @@ public static class HttpRequestExtensions
 
         EncryptedUserDto Unauthorized()
         {
-#if DEBUG
-            return new EncryptedUserDto
-            {
-                Username = "mvidacovich",
-                CreatedUtc = DateTimeOffset.UtcNow
-            };
-#else
             return null;
-#endif
         }
     }
 }
