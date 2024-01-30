@@ -9,4 +9,7 @@ public class ActionsPublicKey
 
     [JsonProperty("key")]
     public string Key { get; set; }
+
+    [JsonIgnore]
+    public byte[] KeyBytes { get; set; }
 }

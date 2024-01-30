@@ -119,6 +119,11 @@ public static class GithubLogin
             return new RedirectResult("/api/set-webhook", false);
         }
 
+        if (path == "expo")
+        {
+            return new RedirectResult("/api/set-expo", false);
+        }
+
         return new RedirectResult("/api/set-email", false);
     }
 

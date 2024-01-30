@@ -11,15 +11,15 @@ using Selu383Bot.GithubWebhook.Properties;
 
 namespace Selu383Bot.GithubWebhook.Functions;
 
-public static class SetPublishProfile
+public static class SetExpoSecret
 {
-    [FunctionName("set-secret-get")]
-    public static Task<IActionResult> SetSecretGet([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "set-secret")] HttpRequest req)
+    [FunctionName("set-expo-get")]
+    public static Task<IActionResult> SetSecretGet([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "set-expo")] HttpRequest req)
     {
         var userData = req.GetAuthInfo();
         if (userData == null)
         {
-            req.SetCookie("path", "secret");
+            req.SetCookie("path", "expo");
             return Task.FromResult<IActionResult>(new RedirectResult("/api/start-github-login", false));
         }
 
@@ -27,17 +27,17 @@ public static class SetPublishProfile
         {
             ContentType = "text/html; charset=utf-8",
             StatusCode = (int?) HttpStatusCode.OK,
-            Content = Resources.SetPublishProfile
+            Content = Resources.SetExpoSecret
         }));
     }
 
-    [FunctionName("set-secret-post")]
-    public static async Task<IActionResult> SetSecretPost([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "set-secret")] HttpRequest req)
+    [FunctionName("set-expo-post")]
+    public static async Task<IActionResult> SetSecretPost([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "set-expo")] HttpRequest req)
     {
         var userData = req.GetAuthInfo();
         if (userData == null)
         {
-            req.SetCookie("path", "secret");
+            req.SetCookie("path", "expo");
             return new RedirectResult("/api/start-github-login", false);
         }
 
@@ -49,12 +49,11 @@ public static class SetPublishProfile
             return accessError;
         }
 
-        var file = form.Files.FirstOrDefault();
-        if (file == null)
+        var expo = form["expo"].ToString().Trim();
+        if (string.IsNullOrWhiteSpace(expo))
         {
-            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing file");
+            return FunctionHelper.ReturnResult(HttpStatusCode.BadRequest, "Missing expo");
         }
-
 
         var publicKey = GithubSecretHelpers.GetPublicKey(repository);
         if (publicKey == null)
@@ -62,16 +61,13 @@ public static class SetPublishProfile
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "we couldn't get secrets key. If this keeps happening contact 383@envoc.com");
         }
 
-        const string publishProfileKey = "AZURE_WEBAPP_PUBLISH_PROFILE";
-
-        var encryptedValue = await GithubSecretHelpers.GetEncryptedValue(file, publicKey);
-
-        var publishError = await GithubSecretHelpers.UpdateSecret(repository, publicKey, publishProfileKey, encryptedValue);
-        if (publishError)
+        const string expoTokenKey = "EXPO_TOKEN";
+        var expoError = await GithubSecretHelpers.UpdateSecret(repository, publicKey, expoTokenKey, GithubSecretHelpers.GetEncryptedValue(expo, publicKey));
+        if (expoError)
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
         }
 
-        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {publishProfileKey} as a secret values in your actions");
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {expoTokenKey} as a secret values in your actions");
     }
 }
