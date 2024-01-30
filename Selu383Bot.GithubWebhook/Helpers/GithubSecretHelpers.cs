@@ -22,13 +22,7 @@ public static class GithubSecretHelpers
             EncryptedValue = encryptedResult,
             KeyId = actionsPublicKey.KeyId
         });
-        var saved = (await githubClient.ExecuteAsync(putSecretRequest)).IsSuccessful;
-        if (!saved)
-        {
-            return false;
-        }
-
-        return true;
+        return (await githubClient.ExecuteAsync(putSecretRequest)).IsSuccessful;
     }
 
     public static ActionsPublicKey GetPublicKey(string repository)

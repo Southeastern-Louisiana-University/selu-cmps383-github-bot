@@ -66,8 +66,8 @@ public static class SetPublishProfile
 
         var encryptedValue = await GithubSecretHelpers.GetEncryptedValue(file, publicKey);
 
-        var publishError = await GithubSecretHelpers.UpdateSecret(repository, publicKey, publishProfileKey, encryptedValue);
-        if (publishError)
+        var saved = await GithubSecretHelpers.UpdateSecret(repository, publicKey, publishProfileKey, encryptedValue);
+        if (!saved)
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
         }

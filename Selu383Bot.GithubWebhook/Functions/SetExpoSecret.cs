@@ -62,8 +62,8 @@ public static class SetExpoSecret
         }
 
         const string expoTokenKey = "EXPO_TOKEN";
-        var expoError = await GithubSecretHelpers.UpdateSecret(repository, publicKey, expoTokenKey, GithubSecretHelpers.GetEncryptedValue(expo, publicKey));
-        if (expoError)
+        var saved = await GithubSecretHelpers.UpdateSecret(repository, publicKey, expoTokenKey, GithubSecretHelpers.GetEncryptedValue(expo, publicKey));
+        if (!saved)
         {
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
         }
