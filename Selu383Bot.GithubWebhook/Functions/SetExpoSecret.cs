@@ -68,6 +68,6 @@ public static class SetExpoSecret
             return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Bad things occured");
         }
 
-        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {expoTokenKey} as a secret values in your actions");
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"The secret as been set - you should be able to use {expoTokenKey} as a secret value in your actions");
     }
 }
