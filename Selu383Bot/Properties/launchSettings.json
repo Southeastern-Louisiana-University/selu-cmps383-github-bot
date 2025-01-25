@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Selu383Bot": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7118",
+      "launchBrowser": false
+    }
+  }
+}

@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Selu383Bot.GithubWebhook", "Selu383Bot.GithubWebhook\Selu383Bot.GithubWebhook.csproj", "{730920EA-3AA1-48EE-9587-97297536D0F8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Selu383Bot", "Selu383Bot\Selu383Bot.csproj", "{8F3B562B-6973-4C4A-8111-9E4B0064DBF4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{730920EA-3AA1-48EE-9587-97297536D0F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{730920EA-3AA1-48EE-9587-97297536D0F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{730920EA-3AA1-48EE-9587-97297536D0F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{730920EA-3AA1-48EE-9587-97297536D0F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F3B562B-6973-4C4A-8111-9E4B0064DBF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F3B562B-6973-4C4A-8111-9E4B0064DBF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F3B562B-6973-4C4A-8111-9E4B0064DBF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F3B562B-6973-4C4A-8111-9E4B0064DBF4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
