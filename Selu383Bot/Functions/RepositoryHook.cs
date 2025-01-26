@@ -199,6 +199,24 @@ public static class RepositoryHook
                     return Status(HttpStatusCode.InternalServerError);
                 }
 
+                var mergeProtection = new RestRequest("/repos/{owner}/{repo}", Method.Patch);
+                mergeProtection.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
+                mergeProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
+                mergeProtection.AddBody(new
+                {
+                    //https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#update-a-repository
+                    allow_squash_merge = false,
+                    allow_rebase_merge = false,
+                });
+
+                var mergeProtectionResult = await githubClient.ExecuteAsync(mergeProtection);
+                if (!mergeProtectionResult.IsSuccessful)
+                {
+                    AppendLine("Error applying merge protection");
+                    AppendJson(mergeProtectionResult);
+                    return Status(HttpStatusCode.InternalServerError);
+                }
+
                 return Status(HttpStatusCode.OK);
             }
 
