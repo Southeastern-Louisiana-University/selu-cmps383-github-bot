@@ -113,9 +113,15 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.InternalServerError);
             }
 
-            if (!result.Payload.Repository.Name.Contains("cmps383"))
+            if (!result.Payload.Repository.Name.StartsWith("cmps383-"))
             {
                 AppendLine("Looks like this isn't 383 - let's bounce");
+                return Status(HttpStatusCode.OK);
+            }
+
+            if (!result.Payload.Repository.Name.Contains("-g"))
+            {
+                AppendLine("It looks like 383, but not a group's repository");
                 return Status(HttpStatusCode.OK);
             }
 
