@@ -12,21 +12,21 @@ public static class LockRepositories
     private const string TeamSlugContainsString = "cmps383-2025-sp";
 
     [Function("LockRepositories")]
-    public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer, ILogger log)
+    public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer)
     {
         var now = DateTimeOffset.UtcNow;
-        log.LogInformation($"LockRepositories executed at: {now}");
+        Console.WriteLine($"LockRepositories executed at: {now}");
 
         var lockout = FunctionHelper.GetEnvironmentVariable("LockoutDate");
         if (string.IsNullOrWhiteSpace(lockout) || !DateTimeOffset.TryParse(lockout, out var parsed))
         {
-            log.LogWarning("Invalid lockout: " + (lockout ?? "NULL"));
+            Console.WriteLine("Invalid lockout: " + (lockout ?? "NULL"));
             return;
         }
 
         if ((parsed - now).Duration() >= TimeSpan.FromMinutes(30))
         {
-            log.LogInformation("Lock out doesn't meet time window: " + lockout);
+            Console.WriteLine("Lock out doesn't meet time window: " + lockout);
             return;
         }
 
@@ -63,7 +63,7 @@ public static class LockRepositories
                 permission = "pull"
             });
 
-            log.LogInformation($"Locking out {relevantTeam.Slug}");
+            Console.WriteLine($"Locking out {relevantTeam.Slug}");
 
             await githubClient.ExecuteAsync(teamPermissionRequest);
         }
