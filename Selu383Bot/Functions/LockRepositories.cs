@@ -9,7 +9,7 @@ namespace Selu383Bot.Functions;
 public static class LockRepositories
 {
     // TODO: setting?
-    private const string TeamSlugContainsString = "cmps383-2024-sp";
+    private const string TeamSlugContainsString = "cmps383-2025-sp";
 
     [Function("LockRepositories")]
     public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer, ILogger log)
