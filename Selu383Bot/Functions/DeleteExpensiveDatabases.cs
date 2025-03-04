@@ -14,14 +14,13 @@ public static partial class DeleteExpensiveDatabases
     private static partial Regex GeneralPurposeServerless();
 
     [Function("DeleteExpensiveDatabases")]
-    public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer, ILogger log)
+    public static async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo myTimer)
     {
         var ownerServicePrincipal = JsonConvert.DeserializeObject<ServicePrincipalData>(FunctionHelper.GetEnvironmentVariable("AzureServicePrincipalData")) ?? throw new Exception("missing AzureServicePrincipalData");
         var credentials = SdkContext.AzureCredentialsFactory.FromServicePrincipal(ownerServicePrincipal.AppId, ownerServicePrincipal.Password, ownerServicePrincipal.Tenant, AzureEnvironment.AzureGlobalCloud);
 
         var authenticated = Microsoft.Azure.Management.Fluent.Azure.Authenticate(credentials);
         var azure = authenticated.WithSubscription(ownerServicePrincipal.SubscriptionId);
-
 
         var servers = new List<(string id, string slo)>();
 
@@ -57,13 +56,7 @@ public static partial class DeleteExpensiveDatabases
 
         if (toDelete.Any())
         {
-            log.LogInformation($"Deleting expensive databases: {JsonConvert.SerializeObject(toDelete)}");
-
             await azure.SqlServers.DeleteByIdsAsync(toDelete);
-        }
-        else
-        {
-            log.LogInformation($"No expensive DBs: {JsonConvert.SerializeObject(servers)}");
         }
     }
 }
