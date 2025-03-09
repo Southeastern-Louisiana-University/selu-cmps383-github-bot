@@ -12,10 +12,12 @@ public static class StudentHookBlob
     [Function("StudentBobStorage")]
     public static async Task RunAsync([QueueTrigger(FunctionHelper.QueueName)]string name, FunctionContext context)
     {
+        long attemptCount;
         var logger = context.GetLogger(nameof(StudentHookBlob));
         CloudBlockBlob handle;
         try
         {
+            attemptCount = Convert.ToInt64(context.BindingContext.BindingData["DequeueCount"]);
             handle = await FunctionHelper.GetToStudentBlobAsync(name);
         }
         catch (Exception e)
@@ -25,40 +27,30 @@ public static class StudentHookBlob
             return;
         }
 
-        handle.Metadata.TryGetValue("attempts", out var attemptTextValue);
-        var attemptCount = int.Parse(attemptTextValue ?? "0");
-        if (attemptCount > 3)
+        if (attemptCount > 1)
         {
             await handle.DeleteAsync();
             return;
         }
-        try
-        {
-            var url = await FunctionHelper.GetHostForStudentHookBlobAsync(handle);
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                await handle.DeleteAsync();
-                return;
-            }
-            var clientFactory = context.InstanceServices.GetRequiredService<IHttpClientFactory>();
-            var httpClient = clientFactory.CreateClient();
 
-            var memoryStream = new MemoryStream();
-            await handle.DownloadToStreamAsync(memoryStream);
-            memoryStream.Position = 0;
-            var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = new StreamContent(memoryStream)
-            };
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue(handle.Properties.ContentType);
-            await httpClient.SendAsync(request);
-        }
-        catch
+        var url = await FunctionHelper.GetHostForStudentHookBlobAsync(handle);
+        if (string.IsNullOrWhiteSpace(url))
         {
-            handle.Metadata["attempts"] = (attemptCount + 1).ToString();
-            await handle.SetPropertiesAsync();
-            throw;
+            await handle.DeleteAsync();
+            return;
         }
+        var clientFactory = context.InstanceServices.GetRequiredService<IHttpClientFactory>();
+        var httpClient = clientFactory.CreateClient();
+
+        var memoryStream = new MemoryStream();
+        await handle.DownloadToStreamAsync(memoryStream);
+        memoryStream.Position = 0;
+        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StreamContent(memoryStream)
+        };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue(handle.Properties.ContentType);
+        await httpClient.SendAsync(request);
 
         await handle.DeleteAsync();
     }

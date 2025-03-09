@@ -71,8 +71,6 @@ public static class FunctionHelper
         await hookBlobContainer.CreateIfNotExistsAsync();
 
         var reference = hookBlobContainer.GetBlockBlobReference(name);
-        await reference.FetchAttributesAsync();
-
         return reference;
     }
 
