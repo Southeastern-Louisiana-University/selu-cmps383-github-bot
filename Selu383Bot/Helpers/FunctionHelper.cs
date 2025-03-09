@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.Queue;
 using Microsoft.WindowsAzure.Storage.Table;
 using RestSharp;
 using Selu383Bot.Features.StudentHooks;
@@ -16,6 +17,7 @@ public static class FunctionHelper
     public const string SeluOrganization = "Southeastern-Louisiana-University";
     public const string AdminTeamSlug = "383-admins";
     public const string StudentHookBlobContainerName = "studenthookcalls";
+    public const string QueueName = "webhooktosend";
 
     public static ContentResult ReturnResult(HttpStatusCode code, string text)
     {
@@ -73,19 +75,26 @@ public static class FunctionHelper
 
         return reference;
     }
+
     public static async Task WriteToStudentBlobAsync(string repository, string data)
     {
-
         var storageAccount = CloudStorageAccount.Parse(GetEnvironmentVariable("AzureWebJobsStorage"));
         var blobClient = storageAccount.CreateCloudBlobClient();
         var hookBlobContainer = blobClient.GetContainerReference(StudentHookBlobContainerName);
         await hookBlobContainer.CreateIfNotExistsAsync();
 
-        var blobBlob = hookBlobContainer.GetBlockBlobReference($"{repository}_{Guid.NewGuid()}.json");
+        var name = $"{repository}_{Guid.NewGuid()}.json";
+        var blobBlob = hookBlobContainer.GetBlockBlobReference(name);
         blobBlob.Properties.ContentType = "application/json";
         blobBlob.Metadata["repo"] = repository;
 
         await blobBlob.UploadTextAsync(data);
+
+        var queueClient = storageAccount.CreateCloudQueueClient();
+        var queue = queueClient.GetQueueReference(QueueName);
+        await queue.CreateIfNotExistsAsync();
+
+        await queue.AddMessageAsync(new CloudQueueMessage(name));
     }
 
     public static async Task<string?> GetHostForStudentHookBlobAsync(CloudBlockBlob handle)
