@@ -51,7 +51,11 @@ public static class StudentHookBlob
                 Content = new StreamContent(memoryStream)
             };
             request.Content.Headers.ContentType = new MediaTypeHeaderValue(handle.Properties.ContentType);
-            await httpClient.SendAsync(request);
+            var result = await httpClient.SendAsync(request);
+            if (!result.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"failed to send {name} to {url}");
+            }
         }
         catch
         {
