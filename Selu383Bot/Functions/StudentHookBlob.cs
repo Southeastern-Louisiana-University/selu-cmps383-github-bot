@@ -8,7 +8,7 @@ namespace Selu383Bot.Functions;
 public static class StudentHookBlob
 {
     [Function("StudentBobStorage")]
-    public static async Task RunAsync([BlobTrigger(FunctionHelper.StudentHookBlobContainerName + "/{name}")]Stream myBlob, string name, FunctionContext context)
+    public static async Task RunAsync([BlobTrigger(FunctionHelper.StudentHookBlobContainerName + "/{name}")] Stream blob, string name, FunctionContext context)
     {
         var handle = await FunctionHelper.GetToStudentBlobAsync(name);
         handle.Metadata.TryGetValue("attempts", out var attemptTextValue);
@@ -31,7 +31,7 @@ public static class StudentHookBlob
 
             var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
-                Content = new StreamContent(myBlob)
+                Content = new StreamContent(blob)
             };
             request.Content.Headers.ContentType = new MediaTypeHeaderValue(handle.Properties.ContentType);
             await httpClient.SendAsync(request);

@@ -88,10 +88,15 @@ public static class FunctionHelper
         await blobBlob.UploadTextAsync(data);
     }
 
-    public static async Task<string> GetHostForStudentHookBlobAsync(CloudBlockBlob handle)
+    public static async Task<string?> GetHostForStudentHookBlobAsync(CloudBlockBlob handle)
     {
+        var repo = handle.Name.Split("_").FirstOrDefault()?.ToLower();
+        if (string.IsNullOrWhiteSpace(repo))
+        {
+            return null;
+        }
         var table = await GetStudentWebhooksTable();
-        var row = await table.ExecuteAsync(TableOperation.Retrieve<WebhookTableEntity>(handle.Metadata["repo"].ToLower(), "0"));
+        var row = await table.ExecuteAsync(TableOperation.Retrieve<WebhookTableEntity>(repo, "0"));
         var data = row.Result as WebhookTableEntity;
         return data?.Url;
     }
