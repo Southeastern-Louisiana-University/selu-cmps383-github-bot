@@ -89,7 +89,7 @@ public static class SetAzureEmail
         var createResult = await GetOrCreateAdUser(graphServiceClient, email, githubUsername);
         if (createResult.adUser == null)
         {
-            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "We had trouble creating your user. Try again. Email 383@envoc.com if it continues to fail");
+            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "We had trouble creating your user. Try again. Email cmps3830@gmail.com if it continues to fail");
         }
         var adGroup = await GetOrCreateGroup(graphServiceClient, nameBase);
 
@@ -116,17 +116,17 @@ public static class SetAzureEmail
             .SingleOrDefault(x => x.Name.Split("-").Length == 2);
         if (sharedResourceGroup == null)
         {
-            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "Envoc needs to create the shared resource stuff");
+            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "cmps3830@gmail.com needs to create the shared resource stuff");
         }
 
         await AddGroupRole(azure, adGroup, sharedResourceGroup, BuiltInRole.WebPlanContributor);
 
         if (createResult.adInvite != null)
         {
-            return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} check {createResult.adUser.Mail} for an azure invite. It will be titled 'SELU 383 Envoc invited you to access applications within their organization'. SAVE THIS: If you don't get the email, your link is: {createResult.adInvite.InviteRedeemUrl}");
+            return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} check {createResult.adUser.Mail} for an azure invite. It will be titled 'SELU 383 invited you to access applications within their organization'. SAVE THIS: If you don't get the email, your link is: {createResult.adInvite.InviteRedeemUrl}");
         }
 
-        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} / {createResult.adUser.Mail} - It looks like you were already setup. The rest of your azure resources have been setup. If your email looks wrong then contact 383@envoc.com");
+        return FunctionHelper.ReturnResult(HttpStatusCode.OK, $"Hi {createResult.adUser.DisplayName} / {createResult.adUser.Mail} - It looks like you were already setup. The rest of your azure resources have been setup. If your email looks wrong then contact cmps3830@gmail.com");
     }
 
     private static async Task AddGroupRole(

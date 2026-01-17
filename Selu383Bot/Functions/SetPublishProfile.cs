@@ -56,7 +56,7 @@ public static class SetPublishProfile
         var publicKey = GithubSecretHelpers.GetPublicKey(repository);
         if (publicKey == null)
         {
-            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "we couldn't get secrets key. If this keeps happening contact 383@envoc.com");
+            return FunctionHelper.ReturnResult(HttpStatusCode.InternalServerError, "we couldn't get secrets key. If this keeps happening contact cmps3830@gmail.com");
         }
 
         const string publishProfileKey = "AZURE_WEBAPP_PUBLISH_PROFILE";
