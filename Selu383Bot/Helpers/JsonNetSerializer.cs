@@ -18,7 +18,7 @@ public class JsonNetSerializer : IRestSerializer, ISerializer, IDeserializer
 
     public string[] AcceptedContentTypes => Types;
 
-    public SupportsContentType SupportsContentType { get; } = x => Types.Contains(x);
+    public SupportsContentType SupportsContentType { get; } = x => Types.Contains(x.Value);
 
     public DataFormat DataFormat => DataFormat.Json;
 
@@ -27,7 +27,7 @@ public class JsonNetSerializer : IRestSerializer, ISerializer, IDeserializer
         return JsonConvert.SerializeObject(obj);
     }
 
-    public string ContentType { get; set; } = Types[0];
+    public ContentType ContentType { get; set; } = ContentType.Json;
 
     public T Deserialize<T>(RestResponse response)
     {

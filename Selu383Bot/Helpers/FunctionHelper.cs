@@ -43,7 +43,7 @@ public static class FunctionHelper
     public static RestClient GetNewtonsoftGithubApiClient()
     {
         var accessToken = GetEnvironmentVariable("GithubFineGrainAccessToken");
-        var githubClient = new RestClient("https://api.github.com").UseSerializer(() => new JsonNetSerializer());
+        var githubClient = new RestClient("https://api.github.com", configureSerialization: s=> s.UseSerializer(() => new JsonNetSerializer()));
         githubClient.AddDefaultHeader("Authorization", $"token {accessToken}");
         return githubClient;
     }

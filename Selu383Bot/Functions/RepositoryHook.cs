@@ -34,7 +34,7 @@ public static class RepositoryHook
                 return Status(HttpStatusCode.Unauthorized);
             }
 
-            var githubClient = new RestClient("https://api.github.com").UseSerializer(()=> new JsonNetSerializer());
+            var githubClient = new RestClient("https://api.github.com", configureSerialization: s=> s.UseSerializer(() => new JsonNetSerializer()));
             githubClient.AddDefaultHeader("Authorization", $"token {FunctionHelper.GetEnvironmentVariable("GithubFineGrainAccessToken")}");
 
             var rageLimit = new RestRequest("/rate_limit");
