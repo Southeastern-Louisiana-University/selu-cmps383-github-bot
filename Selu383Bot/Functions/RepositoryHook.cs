@@ -183,7 +183,7 @@ public static class RepositoryHook
                 var branchProtection = new RestRequest("/repos/{owner}/{repo}/branches/{branch}/protection", Method.Put);
                 branchProtection.AddParameter(Parameter.CreateParameter("owner", FunctionHelper.SeluOrganization, ParameterType.UrlSegment));
                 branchProtection.AddParameter(Parameter.CreateParameter("repo", repository.Name, ParameterType.UrlSegment));
-                branchProtection.AddParameter(Parameter.CreateParameter("branch", "master", ParameterType.UrlSegment));
+                branchProtection.AddParameter(Parameter.CreateParameter("branch", "main", ParameterType.UrlSegment));
                 branchProtection.AddBody(new BranchProtection
                 {
                     RequiredPullRequestReviews = new RequiredPullRequestReviews(),
